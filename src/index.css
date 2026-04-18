@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* { box-sizing: border-box; }
+
+:root {
+  --lofty-blue: #1E88E5;
+  --lofty-cyan: #00BCD4;
+  --lofty-dark: #0D1B2A;
+  --lofty-surface: #132337;
+  --lofty-border: #1E3A5F;
+}
+
+body {
+  background-color: var(--lofty-dark);
+  color: white;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.card-auto    { border-color: #22c55e; }
+.card-approval { border-color: #f59e0b; }
+.card-critical { border-color: #ef4444; }
+.card-revenue  { border-color: #1E88E5; }
