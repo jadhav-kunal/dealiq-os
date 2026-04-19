@@ -20,6 +20,7 @@ import SortableCard from './SortableCard'
 import CardContainer from './CardContainer'
 import TopBar from '../layout/TopBar'
 import RevenueCard from '../cards/RevenueCard'
+import MorningBriefing from '../layout/MorningBriefing'
 
 export default function AdaptiveGrid() {
   const { cards, pinnedCardIds, hiddenCardIds, reorderCards } = useWorkspaceStore()
@@ -66,6 +67,8 @@ export default function AdaptiveGrid() {
             Cards reorder automatically by urgency and revenue impact.
           </p>
         </div>
+
+        <MorningBriefing cards={sortable} />
 
         {/* Pinned revenue card — always first */}
         {pinned.map((card) => (

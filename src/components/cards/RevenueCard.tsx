@@ -36,7 +36,11 @@ export default function RevenueCard({ card }: Props) {
         </div>
       )}
 
-      {card.aiReason && <WhyThisMatters reason={card.aiReason} />}
+      {card.aiReason && <WhyThisMatters
+      cardTitle={card.title}
+      cardData={card.data ?? {}}
+      staticReason={card.aiReason}
+    />}
     </div>
   )
 }
