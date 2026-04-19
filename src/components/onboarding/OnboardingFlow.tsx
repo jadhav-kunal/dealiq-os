@@ -2,99 +2,104 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUserStore } from '../../store/useUserStore'
-import QuestionStep from './QuestionStep'
-import TrustSetup from './TrustSetup'
-import type { UserProfile, FocusMode, TrustLevel } from '../../types'
+import { ALL_TABS } from '../../data/mockData'
+import type { TabId, TrustLevel, UserProfile } from '../../types'
+import {
+  Users, UserPlus, TrendingUp, FileText,
+  CheckSquare, Calendar, Home, Flame,
+} from 'lucide-react'
 
-const steps = [
+type Step = 'priorities' | 'trust' | 'name'
+
+const TAB_ICONS: Record<TabId, React.ReactNode> = {
+  keep_in_touch: <Users size={16} />,
+  new_leads:     <UserPlus size={16} />,
+  opportunities: <TrendingUp size={16} />,
+  transactions:  <FileText size={16} />,
+  tasks:         <CheckSquare size={16} />,
+  appointments:  <Calendar size={16} />,
+  listings:      <Home size={16} />,
+  hot_sheets:    <Flame size={16} />,
+}
+
+const trustOptions: {
+  value: TrustLevel
+  label: string
+  desc: string
+  bg: string
+  text: string
+  border: string
+}[] = [
   {
-    id: 'focus',
-    question: 'What matters most to you right now?',
-    subtitle: 'DealIQ will prioritize your workspace around this.',
-    options: [
-      { value: 'close_deals', label: 'Closing deals', icon: '🏠', desc: 'Focus on active transactions and high-intent leads' },
-      { value: 'generate_leads', label: 'Finding new clients', icon: '🎯', desc: 'Surface new leads and outreach opportunities' },
-      { value: 'balanced', label: 'Stay balanced', icon: '⚖️', desc: 'Mix of lead gen, nurturing, and deal management' },
-    ],
+    value: 'auto',
+    label: 'Auto',
+    desc: 'AI acts fully — no input needed',
+    bg: '#D1FAE5',
+    text: '#065F46',
+    border: '#A7F3D0',
   },
   {
-    id: 'frustration',
-    question: "What frustrates you most today?",
-    subtitle: "We'll make sure AI handles this for you.",
-    options: [
-      { value: 'too_many_leads', label: 'Too many leads to track', icon: '📋', desc: "Can't keep up with who needs follow-up" },
-      { value: 'missing_followups', label: 'Missing follow-ups', icon: '⏰', desc: 'Leads going cold because I forget to reach out' },
-      { value: 'losing_deals', label: 'Losing deals at the last minute', icon: '📉', desc: 'Transactions falling through due to missed deadlines' },
-      { value: 'admin_overload', label: 'Too much admin work', icon: '📄', desc: 'Paperwork eating into selling time' },
-    ],
+    value: 'approval',
+    label: 'Ask Me',
+    desc: 'AI drafts, you approve or edit',
+    bg: '#FEF3C7',
+    text: '#92400E',
+    border: '#FDE68A',
   },
   {
-    id: 'trust',
-    question: 'What can AI do without asking you?',
-    subtitle: 'You stay in control. Set your comfort level.',
-    isTrustStep: true,
-  },
-  {
-    id: 'name',
-    question: "Last one — what's your name?",
-    subtitle: 'DealIQ will personalize your morning briefings.',
-    isNameStep: true,
+    value: 'manual',
+    label: 'Manual',
+    desc: 'AI suggests only, you act',
+    bg: '#F3F4F6',
+    text: '#374151',
+    border: '#E5E7EB',
   },
 ]
 
 export default function OnboardingFlow() {
   const navigate = useNavigate()
   const setProfile = useUserStore((s) => s.setProfile)
-  const [currentStep, setCurrentStep] = useState(0)
-  const [direction, setDirection] = useState(1)
-  const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [trustLevels, setTrustLevels] = useState<UserProfile['trustLevels']>({
-    followUps: 'auto',
-    messages: 'approval',
-    negotiations: 'manual',
-    listings: 'approval',
-  })
+
+  const [step, setStep] = useState<Step>('priorities')
+  const [selected, setSelected] = useState<TabId[]>([])
+  const [trustMap, setTrustMap] = useState<Partial<Record<TabId, TrustLevel>>>({})
   const [name, setName] = useState('')
+  const [direction, setDirection] = useState(1)
 
-  const step = steps[currentStep]
-  const isLast = currentStep === steps.length - 1
-
-  function handleAnswer(value: string) {
-    setAnswers((prev) => ({ ...prev, [step.id]: value }))
-    if (!step.isTrustStep && !step.isNameStep) {
-      goNext()
-    }
+  function toggleTab(id: TabId) {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+    )
   }
 
-  function goNext() {
-    setDirection(1)
-    setCurrentStep((s) => Math.min(s + 1, steps.length - 1))
+  function setTrust(id: TabId, level: TrustLevel) {
+    setTrustMap((prev) => ({ ...prev, [id]: level }))
   }
 
-  function goBack() {
-    setDirection(-1)
-    setCurrentStep((s) => Math.max(s - 1, 0))
+  function goTo(next: Step, dir: number) {
+    setDirection(dir)
+    setStep(next)
   }
 
   function finish() {
-    const focusMap: Record<string, FocusMode> = {
-      close_deals: 'close_deals',
-      generate_leads: 'generate_leads',
-      balanced: 'balanced',
+    const defaultTrust: Record<TabId, TrustLevel> = {
+      keep_in_touch: 'approval',
+      new_leads:     'approval',
+      opportunities: 'approval',
+      transactions:  'manual',
+      tasks:         'auto',
+      appointments:  'manual',
+      listings:      'approval',
+      hot_sheets:    'auto',
     }
-    const focus = focusMap[answers.focus] ?? 'balanced'
-
-    const priorities = {
-      close_deals: { deals: 9, leads: 5, tasks: 4 },
-      generate_leads: { deals: 4, leads: 9, tasks: 5 },
-      balanced: { deals: 7, leads: 6, tasks: 5 },
-    }[focus]
+    const tabConfigs = { ...defaultTrust, ...trustMap } as Record<TabId, TrustLevel>
 
     const profile: UserProfile = {
       name: name.trim() || 'Agent',
-      focusMode: focus,
-      priorities,
-      trustLevels,
+      priorityTabs: selected.length > 0
+        ? selected
+        : ['new_leads', 'opportunities', 'keep_in_touch'],
+      tabConfigs,
       onboardingComplete: true,
     }
     setProfile(profile)
@@ -102,53 +107,237 @@ export default function OnboardingFlow() {
   }
 
   const variants = {
-    enter: (d: number) => ({ x: d > 0 ? 60 : -60, opacity: 0 }),
+    enter:  (d: number) => ({ x: d > 0 ?  48 : -48, opacity: 0 }),
     center: { x: 0, opacity: 1 },
-    exit: (d: number) => ({ x: d > 0 ? -60 : 60, opacity: 0 }),
+    exit:   (d: number) => ({ x: d > 0 ? -48 :  48, opacity: 0 }),
   }
 
+  const stepIndex = step === 'priorities' ? 0 : step === 'trust' ? 1 : 2
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 py-12">
+
       {/* Logo */}
-      <div className="mb-10 flex items-center gap-3">
-        <div className="w-8 h-8 bg-lofty-blue rounded-lg flex items-center justify-center font-bold text-sm">L</div>
-        <span className="text-xl font-semibold tracking-tight">DealIQ OS</span>
-        <span className="text-xs text-gray-500 ml-1">by Lofty</span>
+      <div className="mb-10 flex items-center gap-2.5">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
+          style={{ background: '#3C5CDE' }}
+        >
+          L
+        </div>
+        <span className="text-xl font-semibold text-lofty-text tracking-tight">DealIQ OS</span>
+        <span className="text-xs text-lofty-subtle ml-1">by Lofty</span>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full max-w-lg mb-8">
+      <div className="w-full max-w-2xl mb-8">
         <div className="flex gap-1.5">
-          {steps.map((_, i) => (
+          {(['priorities', 'trust', 'name'] as Step[]).map((s, i) => (
             <div
-              key={i}
+              key={s}
               className="h-1 flex-1 rounded-full transition-all duration-500"
-              style={{ background: i <= currentStep ? '#1E88E5' : '#1E3A5F' }}
+              style={{ background: i <= stepIndex ? '#3C5CDE' : '#E5E7EB' }}
             />
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-2 text-right">{currentStep + 1} of {steps.length}</p>
+        <p className="text-xs text-lofty-subtle mt-2 text-right">
+          Step {stepIndex + 1} of 3
+        </p>
       </div>
 
-      {/* Step content */}
-      <div className="w-full max-w-lg overflow-hidden">
+      {/* Animated step content */}
+      <div className="w-full max-w-2xl overflow-hidden">
         <AnimatePresence custom={direction} mode="wait">
           <motion.div
-            key={currentStep}
+            key={step}
             custom={direction}
             variants={variants}
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.28, ease: 'easeInOut' }}
+            transition={{ duration: 0.22, ease: 'easeInOut' }}
           >
-            <h2 className="text-2xl font-semibold mb-2">{step.question}</h2>
-            <p className="text-gray-400 mb-8 text-sm">{step.subtitle}</p>
 
-            {step.isTrustStep ? (
-              <TrustSetup trustLevels={trustLevels} onChange={setTrustLevels} />
-            ) : step.isNameStep ? (
+            {/* ── Step 1: Priority tabs ── */}
+            {step === 'priorities' && (
               <div>
+                <h2 className="text-2xl font-semibold text-lofty-text mb-1">
+                  What matters most to you?
+                </h2>
+                <p className="text-lofty-muted text-sm mb-6">
+                  Select the areas you focus on daily. These will appear front-and-center on your dashboard.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {ALL_TABS.map((tab) => {
+                    const isSelected = selected.includes(tab.id)
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => toggleTab(tab.id)}
+                        className={`text-left px-4 py-4 rounded-xl border transition-all flex items-start gap-3 ${
+                          isSelected
+                            ? 'border-lofty-blue bg-lofty-blue-light'
+                            : 'border-lofty-border bg-white hover:border-lofty-blue hover:bg-lofty-surface'
+                        }`}
+                      >
+                        {/* Icon */}
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                          style={{
+                            background: isSelected ? '#3C5CDE' : '#F3F4F6',
+                            color: isSelected ? '#fff' : '#6B7280',
+                          }}
+                        >
+                          {TAB_ICONS[tab.id]}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold text-lofty-text">
+                            {tab.label}
+                          </div>
+                          <div className="text-xs text-lofty-muted mt-0.5 leading-relaxed">
+                            {tab.desc}
+                          </div>
+                        </div>
+
+                        {/* Check */}
+                        {isSelected && (
+                          <div
+                            className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5"
+                            style={{ background: '#3C5CDE' }}
+                          >
+                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                              <path
+                                d="M1 4L3.5 6.5L9 1"
+                                stroke="white"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="mt-6 flex items-center justify-between">
+                  <p className="text-xs text-lofty-muted">
+                    {selected.length === 0
+                      ? 'Select at least one area'
+                      : `${selected.length} selected — will appear above the fold`}
+                  </p>
+                  <button
+                    disabled={selected.length === 0}
+                    onClick={() => goTo('trust', 1)}
+                    className="px-6 py-2.5 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: '#3C5CDE' }}
+                  >
+                    Continue →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Step 2: Trust levels ── */}
+            {step === 'trust' && (
+              <div>
+                <h2 className="text-2xl font-semibold text-lofty-text mb-1">
+                  How much should AI handle?
+                </h2>
+                <p className="text-lofty-muted text-sm mb-6">
+                  Set AI autonomy for each section you selected. You can change this anytime.
+                </p>
+
+                <div className="space-y-3">
+                  {selected.map((tabId) => {
+                    const tab = ALL_TABS.find((t) => t.id === tabId)!
+                    const current = trustMap[tabId] ?? 'approval'
+
+                    return (
+                      <div
+                        key={tabId}
+                        className="bg-white border border-lofty-border rounded-xl p-4"
+                      >
+                        {/* Tab header */}
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: '#EBEFFC', color: '#3C5CDE' }}
+                          >
+                            {TAB_ICONS[tabId]}
+                          </div>
+                          <span className="text-sm font-semibold text-lofty-text">
+                            {tab.label}
+                          </span>
+                        </div>
+
+                        {/* Trust options */}
+                        <div className="grid grid-cols-3 gap-2">
+                          {trustOptions.map((opt) => {
+                            const isActive = current === opt.value
+                            return (
+                              <button
+                                key={opt.value}
+                                onClick={() => setTrust(tabId, opt.value)}
+                                className="py-2.5 px-3 rounded-xl border text-xs font-medium transition-all text-left"
+                                style={
+                                  isActive
+                                    ? {
+                                        background: opt.bg,
+                                        color: opt.text,
+                                        borderColor: opt.border,
+                                      }
+                                    : {
+                                        background: 'transparent',
+                                        color: '#9CA3AF',
+                                        borderColor: '#E5E7EB',
+                                      }
+                                }
+                              >
+                                <div className="font-semibold mb-0.5">{opt.label}</div>
+                                <div className="text-xs leading-tight opacity-80">
+                                  {opt.desc}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="mt-6 flex items-center justify-between">
+                  <button
+                    onClick={() => goTo('priorities', -1)}
+                    className="text-sm text-lofty-muted hover:text-lofty-text transition-colors"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    onClick={() => goTo('name', 1)}
+                    className="px-6 py-2.5 text-white rounded-xl text-sm font-semibold transition-colors"
+                    style={{ background: '#3C5CDE' }}
+                  >
+                    Continue →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Step 3: Name ── */}
+            {step === 'name' && (
+              <div>
+                <h2 className="text-2xl font-semibold text-lofty-text mb-1">
+                  Last one — what's your name?
+                </h2>
+                <p className="text-lofty-muted text-sm mb-6">
+                  DealIQ will personalize your morning briefings and AI messages.
+                </p>
+
                 <input
                   type="text"
                   placeholder="Your first name"
@@ -156,39 +345,30 @@ export default function OnboardingFlow() {
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && name.trim() && finish()}
                   autoFocus
-                  className="w-full bg-lofty-surface border border-lofty-border rounded-xl px-5 py-4 text-lg outline-none focus:border-lofty-blue transition-colors placeholder:text-gray-600"
+                  className="w-full bg-lofty-surface border border-lofty-border rounded-xl px-5 py-4 text-lg text-lofty-text outline-none transition-colors placeholder:text-lofty-subtle focus:border-lofty-blue"
                 />
+
+                <div className="mt-6 flex items-center justify-between">
+                  <button
+                    onClick={() => goTo('trust', -1)}
+                    className="text-sm text-lofty-muted hover:text-lofty-text transition-colors"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    disabled={!name.trim()}
+                    onClick={finish}
+                    className="px-6 py-2.5 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: '#3C5CDE' }}
+                  >
+                    Build my workspace →
+                  </button>
+                </div>
               </div>
-            ) : (
-              <QuestionStep
-                options={step.options!}
-                selected={answers[step.id]}
-                onSelect={handleAnswer}
-              />
             )}
+
           </motion.div>
         </AnimatePresence>
-      </div>
-
-      {/* Navigation */}
-      <div className="w-full max-w-lg mt-8 flex items-center justify-between">
-        <button
-          onClick={goBack}
-          disabled={currentStep === 0}
-          className="text-sm text-gray-500 hover:text-white disabled:opacity-0 transition-colors"
-        >
-          ← Back
-        </button>
-
-        {(step.isTrustStep || step.isNameStep) && (
-          <button
-            onClick={isLast ? finish : goNext}
-            disabled={step.isNameStep && !name.trim()}
-            className="px-6 py-2.5 bg-lofty-blue hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-sm font-medium transition-colors"
-          >
-            {isLast ? 'Build my workspace →' : 'Continue →'}
-          </button>
-        )}
       </div>
     </div>
   )

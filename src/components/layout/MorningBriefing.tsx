@@ -3,13 +3,12 @@ import { Sparkles, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getMorningBriefing } from '../../api/claude'
 import { useUserStore } from '../../store/useUserStore'
-import type { CardData } from '../../types'
 
 interface Props {
-  cards: CardData[]
+  tabs: { id: string; label: string }[]
 }
 
-export default function MorningBriefing({ cards }: Props) {
+export default function MorningBriefing({ tabs }: Props) {
   const profile = useUserStore((s) => s.profile)
   const [briefing, setBriefing] = useState('')
   const [loading, setLoading] = useState(true)
@@ -17,13 +16,11 @@ export default function MorningBriefing({ cards }: Props) {
 
   useEffect(() => {
     if (!profile) return
-    const slim = cards.map((c) => ({
-      title: c.title,
-      type: c.type,
-      urgency: c.urgency,
-      revenueImpact: c.revenueImpact,
-    }))
-    getMorningBriefing(profile.name, profile.focusMode, slim)
+    getMorningBriefing(
+      profile.name,
+      profile.priorityTabs.join(', '),
+      tabs.map((t) => ({ title: t.label, type: 'tab', urgency: 5, revenueImpact: 0 }))
+    )
       .then(setBriefing)
       .finally(() => setLoading(false))
   }, [])
@@ -32,35 +29,31 @@ export default function MorningBriefing({ cards }: Props) {
     <AnimatePresence>
       {!dismissed && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.3 }}
-          className="mb-5 bg-gradient-to-r from-blue-950/80 to-lofty-surface border border-blue-500/20 rounded-xl px-5 py-4 flex items-start gap-3"
+          exit={{ opacity: 0, y: -8 }}
+          className="mb-5 rounded-xl px-5 py-4 flex items-start gap-3 border"
+          style={{ background: '#EBEFFC', borderColor: '#C7D2F8' }}
         >
-          <div className="mt-0.5 shrink-0">
-            <Sparkles size={16} className="text-lofty-cyan" />
-          </div>
-
+          <Sparkles size={15} className="mt-0.5 shrink-0" style={{ color: '#3C5CDE' }} />
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-lofty-cyan mb-1">
-              AI Morning Briefing
+            <div className="text-xs font-semibold mb-1" style={{ color: '#3C5CDE' }}>
+              AI Briefing
             </div>
             {loading ? (
               <div className="space-y-2">
-                <div className="h-3 bg-lofty-border rounded animate-pulse w-full" />
-                <div className="h-3 bg-lofty-border rounded animate-pulse w-3/4" />
+                <div className="h-3 rounded-full animate-pulse w-full" style={{ background: '#C7D2F8' }} />
+                <div className="h-3 rounded-full animate-pulse w-3/4" style={{ background: '#C7D2F8' }} />
               </div>
             ) : (
-              <p className="text-sm text-gray-300 leading-relaxed">{briefing}</p>
+              <p className="text-sm text-lofty-text leading-relaxed">{briefing}</p>
             )}
           </div>
-
           <button
             onClick={() => setDismissed(true)}
-            className="shrink-0 p-1 hover:bg-white/5 rounded-lg transition-colors mt-0.5"
+            className="shrink-0 p-1 hover:bg-white/60 rounded-lg transition-colors"
           >
-            <X size={14} className="text-gray-500" />
+            <X size={13} className="text-lofty-muted" />
           </button>
         </motion.div>
       )}

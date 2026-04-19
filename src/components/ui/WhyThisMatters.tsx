@@ -28,35 +28,31 @@ export default function WhyThisMatters({ cardTitle, cardData, staticReason }: Pr
   }
 
   return (
-    <div className="mt-3 border-t border-lofty-border pt-3">
+    <div className="mt-3 pt-3 border-t border-lofty-border">
       <button
         onClick={handleOpen}
-        className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors w-full"
+        className="flex items-center gap-1.5 text-xs text-lofty-muted hover:text-lofty-text transition-colors w-full"
       >
-        <Sparkles size={11} className="text-lofty-cyan" />
-        <span>Why this matters</span>
-        <ChevronDown
-          size={12}
-          className={`ml-auto transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        />
+        <Sparkles size={11} style={{ color: '#3C5CDE' }} />
+        <span className="font-medium">Why this matters</span>
+        <ChevronDown size={12} className={`ml-auto transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
-
       <AnimatePresence>
         {open && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.18 }}
             className="overflow-hidden"
           >
             {loading ? (
               <div className="mt-2 space-y-1.5">
-                <div className="h-3 bg-lofty-border rounded animate-pulse w-full" />
-                <div className="h-3 bg-lofty-border rounded animate-pulse w-4/5" />
+                <div className="h-2.5 rounded-full animate-pulse w-full" style={{ background: '#EBEFFC' }} />
+                <div className="h-2.5 rounded-full animate-pulse w-4/5" style={{ background: '#EBEFFC' }} />
               </div>
             ) : (
-              <p className="text-xs text-gray-400 mt-2 leading-relaxed">{reason}</p>
+              <p className="text-xs text-lofty-muted mt-2 leading-relaxed">{reason}</p>
             )}
           </motion.div>
         )}

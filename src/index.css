@@ -1,26 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --lofty-blue: #3C5CDE;
+  --lofty-blue-dark: #2D47B8;
+  --lofty-blue-light: #EBEFFC;
+  --lofty-blue-mid: #C7D2F8;
+  --text-primary: #0F1117;
+  --text-secondary: #4B5563;
+  --text-tertiary: #9CA3AF;
+  --border: #E5E7EB;
+  --border-strong: #D1D5DB;
+  --surface: #F9FAFB;
+  --surface-hover: #F3F4F6;
+  --white: #FFFFFF;
+}
+
 * { box-sizing: border-box; }
 
-:root {
-  --lofty-blue: #1E88E5;
-  --lofty-cyan: #00BCD4;
-  --lofty-dark: #0D1B2A;
-  --lofty-surface: #132337;
-  --lofty-border: #1E3A5F;
-}
-
 body {
-  background-color: var(--lofty-dark);
-  color: white;
-  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--white);
+  color: var(--text-primary);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-.card-auto    { border-color: #22c55e; }
-.card-approval { border-color: #f59e0b; }
-.card-critical { border-color: #ef4444; }
-.card-revenue  { border-color: #1E88E5; }
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }

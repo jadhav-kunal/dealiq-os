@@ -1,25 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { UserProfile } from '../types'
+import { arrayMove } from '@dnd-kit/sortable'
+import type { UserProfile, TabId, TrustLevel } from '../types'
 
 interface UserStore {
   profile: UserProfile | null
   setProfile: (profile: UserProfile) => void
-  updateTrustLevel: (key: keyof UserProfile['trustLevels'], level: UserProfile['trustLevels'][keyof UserProfile['trustLevels']]) => void
+  updateTabTrust: (tabId: TabId, level: TrustLevel) => void
+  reorderPriorityTabs: (activeId: TabId, overId: TabId) => void
   resetProfile: () => void
-}
-
-const defaultProfile: UserProfile = {
-  name: 'James',
-  focusMode: 'balanced',
-  priorities: { deals: 7, leads: 6, tasks: 4 },
-  trustLevels: {
-    followUps: 'auto',
-    messages: 'approval',
-    negotiations: 'manual',
-    listings: 'approval',
-  },
-  onboardingComplete: false,
 }
 
 export const useUserStore = create<UserStore>()(
@@ -27,12 +16,29 @@ export const useUserStore = create<UserStore>()(
     (set) => ({
       profile: null,
       setProfile: (profile) => set({ profile }),
-      updateTrustLevel: (key, level) =>
+      updateTabTrust: (tabId, level) =>
         set((state) => ({
           profile: state.profile
-            ? { ...state.profile, trustLevels: { ...state.profile.trustLevels, [key]: level } }
+            ? {
+                ...state.profile,
+                tabConfigs: { ...state.profile.tabConfigs, [tabId]: level },
+              }
             : state.profile,
         })),
+      reorderPriorityTabs: (activeId, overId) =>
+        set((state) => {
+          if (!state.profile) return state
+          const tabs = state.profile.priorityTabs
+          const oldIndex = tabs.indexOf(activeId)
+          const newIndex = tabs.indexOf(overId)
+          if (oldIndex === -1 || newIndex === -1) return state
+          return {
+            profile: {
+              ...state.profile,
+              priorityTabs: arrayMove(tabs, oldIndex, newIndex),
+            },
+          }
+        }),
       resetProfile: () => set({ profile: null }),
     }),
     { name: 'dealiq-user-profile' }

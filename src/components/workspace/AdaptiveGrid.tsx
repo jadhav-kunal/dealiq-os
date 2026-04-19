@@ -1,127 +1,183 @@
+import { useState } from 'react'
+import { AnimatePresence } from 'framer-motion'
+import { ChevronDown, ChevronUp, Users, UserPlus, TrendingUp, FileText, CheckSquare, Calendar, Home, Flame, Zap, Eye, Hand } from 'lucide-react'
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragOverlay,
-  type DragEndEvent,
-  type DragStartEvent,
+  DndContext, closestCenter, PointerSensor,
+  useSensor, useSensors, DragOverlay,
+  type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
-import { useState } from 'react'
-import { useWorkspaceStore } from '../../store/useWorkspaceStore'
 import { useUserStore } from '../../store/useUserStore'
-import { prioritizeCards } from '../../utils/prioritizer'
-import SortableCard from './SortableCard'
-import CardContainer from './CardContainer'
+import { ALL_TABS } from '../../data/mockData'
 import TopBar from '../layout/TopBar'
-import RevenueCard from '../cards/RevenueCard'
 import MorningBriefing from '../layout/MorningBriefing'
+import TabPanel from './TabPanel'
+import SortableTabCard from './SortableTabCard'
+import type { TabId, TrustLevel } from '../../types'
 
-const focusDescriptions = {
-  close_deals:    'Deals and high-intent leads are ranked first.',
-  generate_leads: 'New leads and outreach opportunities are ranked first.',
-  balanced:       'Cards ranked by urgency and revenue impact.',
+export const TAB_ICONS: Record<TabId, React.ReactNode> = {
+  keep_in_touch: <Users size={18} />,
+  new_leads:     <UserPlus size={18} />,
+  opportunities: <TrendingUp size={18} />,
+  transactions:  <FileText size={18} />,
+  tasks:         <CheckSquare size={18} />,
+  appointments:  <Calendar size={18} />,
+  listings:      <Home size={18} />,
+  hot_sheets:    <Flame size={18} />,
+}
+
+export const TRUST_CONFIG: Record<TrustLevel, { label: string; icon: React.ReactNode; bg: string; text: string; border: string }> = {
+  auto:     { label: 'Auto',   icon: <Zap size={10} />,  bg: '#D1FAE5', text: '#065F46', border: '#A7F3D0' },
+  approval: { label: 'Ask Me', icon: <Eye size={10} />,  bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' },
+  manual:   { label: 'Manual', icon: <Hand size={10} />, bg: '#F3F4F6', text: '#374151', border: '#E5E7EB' },
+}
+
+const tabSummaries: Record<TabId, string> = {
+  keep_in_touch: '3 contacts need attention · 1 birthday today',
+  new_leads:     '23 new leads · 12 untouched · Top score: 88',
+  opportunities: '8 high interest · 3 back to site · 3 sell signals',
+  transactions:  '3 near deadline · $41K commission at stake',
+  tasks:         '10 tasks due today · 4 calls · 2 texts',
+  appointments:  '4 today · 23 total · 12 incomplete',
+  listings:      '3 active · 1 with no engagement in 15 days',
+  hot_sheets:    '4 saved searches · 70 new matches today',
 }
 
 export default function AdaptiveGrid() {
-  const { cards, pinnedCardIds, hiddenCardIds, reorderCards } = useWorkspaceStore()
   const profile = useUserStore((s) => s.profile)
-  const [activeId, setActiveId] = useState<string | null>(null)
+  const reorderPriorityTabs = useUserStore((s) => s.reorderPriorityTabs)
+  const [activeTab, setActiveTab] = useState<TabId | null>(null)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [draggingId, setDraggingId] = useState<TabId | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
-  const { pinned, sortable } = prioritizeCards(cards, pinnedCardIds, hiddenCardIds)
-  const activeCard = cards.find((c) => c.id === activeId)
+  if (!profile) return null
 
-  function handleDragStart(event: DragStartEvent) {
-    setActiveId(event.active.id as string)
+  const priorityTabs = ALL_TABS
+    .filter((t) => profile.priorityTabs.includes(t.id))
+    .sort((a, b) => profile.priorityTabs.indexOf(a.id) - profile.priorityTabs.indexOf(b.id))
+
+  const moreTabs = ALL_TABS.filter((t) => !profile.priorityTabs.includes(t.id))
+  const activeTabData = activeTab ? ALL_TABS.find((t) => t.id === activeTab) : null
+  const draggingTab = draggingId ? ALL_TABS.find((t) => t.id === draggingId) : null
+
+  function handleDragStart(e: DragStartEvent) { setDraggingId(e.active.id as TabId) }
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (over && active.id !== over.id) reorderPriorityTabs(active.id as TabId, over.id as TabId)
+    setDraggingId(null)
   }
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (over && active.id !== over.id) {
-      reorderCards(active.id as string, over.id as string)
-    }
-    setActiveId(null)
-  }
-
-  const focusDesc = focusDescriptions[profile?.focusMode ?? 'balanced']
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <TopBar />
 
-      <main className="flex-1 px-6 py-6 max-w-6xl mx-auto w-full">
+      <main className="flex-1 px-6 py-6 max-w-5xl mx-auto w-full">
+        <MorningBriefing tabs={priorityTabs} />
 
-        {/* Morning briefing */}
-        <MorningBriefing cards={sortable} />
-
-        {/* Context bar */}
-        <div className="mb-5 bg-lofty-surface border border-lofty-border rounded-xl px-4 py-3 flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-lofty-cyan animate-pulse shrink-0" />
-          <p className="text-xs text-gray-400">
-            <span className="text-white font-medium">DealIQ</span> —{' '}
-            <span className="text-lofty-cyan capitalize">
-              {profile?.focusMode?.replace('_', ' ')}
-            </span>{' '}
-            mode. {focusDesc} Drag cards to reorder manually.
+        {/* Section label */}
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-medium text-lofty-muted">
+            Priority areas · drag to reorder
           </p>
         </div>
 
-        {/* Pinned revenue card */}
-        {pinned.map((card) => (
-          <div key={card.id} className="mb-4">
-            <RevenueCard card={card} />
-          </div>
-        ))}
-
-        {/* Sortable grid */}
+        {/* Draggable priority tab cards */}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext
-            items={sortable.map((c) => c.id)}
-            strategy={rectSortingStrategy}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sortable.map((card) => (
-                <SortableCard key={card.id} card={card} />
+          <SortableContext items={priorityTabs.map((t) => t.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {priorityTabs.map((tab) => (
+                <SortableTabCard
+                  key={tab.id}
+                  tabId={tab.id}
+                  label={tab.label}
+                  icon={TAB_ICONS[tab.id]}
+                  summary={tabSummaries[tab.id]}
+                  trustLevel={profile.tabConfigs[tab.id] ?? 'approval'}
+                  onClick={() => setActiveTab(tab.id)}
+                />
               ))}
             </div>
           </SortableContext>
 
           <DragOverlay>
-            {activeCard && (
-              <div className="rotate-1 opacity-90 scale-105 pointer-events-none">
-                <CardContainer card={activeCard} />
+            {draggingTab && (
+              <div
+                className="rounded-2xl p-5 shadow-modal pointer-events-none rotate-1 scale-105 bg-white border"
+                style={{ borderColor: '#3C5CDE' }}
+              >
+                <div className="mb-3" style={{ color: '#3C5CDE' }}>{TAB_ICONS[draggingTab.id]}</div>
+                <div className="font-semibold text-sm text-lofty-text">{draggingTab.label}</div>
               </div>
             )}
           </DragOverlay>
         </DndContext>
 
-        {/* Empty state */}
-        {sortable.length === 0 && pinned.length === 0 && (
-          <div className="text-center py-24 text-gray-600">
-            <div className="text-4xl mb-4">🎯</div>
-            <p className="text-sm font-medium text-gray-400">All caught up!</p>
-            <p className="text-xs text-gray-600 mt-1">No cards to show.</p>
+        {/* More sections */}
+        {moreTabs.length > 0 && (
+          <div className="mt-6">
             <button
-              onClick={() => useWorkspaceStore.getState().resetLayout()}
-              className="mt-4 text-xs text-lofty-blue hover:underline"
+              onClick={() => setMoreOpen((o) => !o)}
+              className="flex items-center gap-1.5 text-xs font-medium text-lofty-muted hover:text-lofty-text transition-colors mb-3"
             >
-              Reset workspace
+              {moreOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              {moreOpen ? 'Hide' : 'Show'} {moreTabs.length} more sections
             </button>
+
+            <AnimatePresence>
+              {moreOpen && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {moreTabs.map((tab) => {
+                    const trust: TrustLevel = profile.tabConfigs[tab.id] ?? 'approval'
+                    const tc = TRUST_CONFIG[trust]
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className="text-left bg-white border border-lofty-border hover:border-lofty-blue rounded-xl p-3.5 transition-all hover:shadow-card group"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-lofty-muted group-hover:text-lofty-blue transition-colors">
+                            {TAB_ICONS[tab.id]}
+                          </span>
+                          <span
+                            className="text-xs font-medium px-1.5 py-0.5 rounded-md flex items-center gap-1"
+                            style={{ background: tc.bg, color: tc.text }}
+                          >
+                            {tc.icon}{tc.label}
+                          </span>
+                        </div>
+                        <div className="text-xs font-semibold text-lofty-text leading-tight">{tab.label}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </AnimatePresence>
           </div>
         )}
-
       </main>
+
+      <AnimatePresence>
+        {activeTab && activeTabData && (
+          <TabPanel
+            key={activeTab}
+            tabId={activeTab}
+            label={activeTabData.label}
+            icon={TAB_ICONS[activeTab]}
+            trustLevel={profile.tabConfigs[activeTab] ?? 'approval'}
+            onClose={() => setActiveTab(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
